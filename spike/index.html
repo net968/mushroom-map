@@ -1,0 +1,41 @@
+<!doctype html><html lang="uk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Перевірка офлайну</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>body{font:16px sans-serif;margin:12px;background:#111;color:#eee}button{font-size:18px;padding:10px 14px;margin:6px 0;width:100%}
+#grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:8px}#grid img{width:100%;display:block;background:#333;min-height:60px}
+.ok{color:#5f5}.bad{color:#f66}pre{white-space:pre-wrap;font-size:13px}</style></head><body>
+<h3>🍄 Перевірка: карта без інтернету</h3>
+<div id="st">…</div>
+<button id="save">💾 Зберегти офлайн (9 плиток)</button>
+<button id="gps">📍 Перевірити GPS (браузер)</button>
+<button id="tgps">📍 Перевірити GPS (Telegram)</button>
+<pre id="log"></pre>
+<div id="grid"></div>
+<script>
+const Z=16, LAT=48.2423, LON=23.4292;
+function t2(lat,lon,z){const n=2**z;return [Math.floor((lon+180)/360*n),Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n)]}
+const [cx,cy]=t2(LAT,LON,Z), tiles=[];
+for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)tiles.push(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${Z}/${cy+dy}/${cx+dx}`);
+const log=m=>{document.getElementById('log').textContent+=m+"\n"};
+async function status(){
+  const sw=navigator.serviceWorker?.controller?'<span class=ok>працює</span>':'<span class=bad>не активний</span>';
+  let n=0;try{const c=await caches.open('spike-tiles');n=(await c.keys()).length}catch(e){}
+  document.getElementById('st').innerHTML=`Інтернет: ${navigator.onLine?'є':'<b>нема</b>'} · service worker: ${sw} · плиток у кеші: <b>${n}</b>/9`+
+   `<br>Telegram: ${window.Telegram?.WebApp?.platform||'—'} ${window.Telegram?.WebApp?.version||''}`;
+}
+document.getElementById('grid').innerHTML=tiles.map(u=>`<img src="${u}">`).join('');
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(status).catch(e=>log('SW помилка: '+e))}else log('serviceWorker не підтримується');
+document.getElementById('save').onclick=async()=>{const c=await caches.open('spike-tiles');let ok=0;
+  for(const u of tiles){try{const r=await fetch(u,{mode:'no-cors'});await c.put(u,r);ok++}catch(e){log('плитка: '+e)}}
+  try{await (await caches.open('spike-app')).addAll(['./','index.html','sw.js'])}catch(e){log('сторінка: '+e)}
+  log(`збережено ${ok}/9`);status()};
+document.getElementById('gps').onclick=()=>{if(!navigator.geolocation){log('geolocation нема');return}
+  navigator.geolocation.getCurrentPosition(p=>log(`браузер GPS: ${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)} ±${Math.round(p.coords.accuracy)} м`),
+   e=>log('браузер GPS помилка: '+e.code+' '+e.message),{enableHighAccuracy:true,timeout:20000})};
+document.getElementById('tgps').onclick=()=>{const lm=window.Telegram?.WebApp?.LocationManager;if(!lm){log('Telegram LocationManager нема (офлайн або стара версія)');return}
+  lm.init(()=>{if(!lm.isLocationAvailable){log('Telegram: геолокація недоступна');return}
+   lm.getLocation(l=>log(l?`Telegram GPS: ${l.latitude.toFixed(5)}, ${l.longitude.toFixed(5)} ±${Math.round(l.horizontal_accuracy||0)} м`:'Telegram: доступ не дано'))})};
+window.Telegram?.WebApp?.ready?.();window.Telegram?.WebApp?.expand?.();
+addEventListener('online',status);addEventListener('offline',status);
+</script></body></html>
