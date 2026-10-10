@@ -1,0 +1,46 @@
+{
+ "fragment": "v1.JcwxDsIwDAXQq6A_G5S4gYZcBWVAMFYFgVioMnRn7sgtGEBquYJzI0wq28v31-twQNg5z465Jq4cb62PhAsCE44IYMObpTW6INy13KFFsIQzQuUIe22uDOGqL8hTvvKSMT9kks9CptznQUYNBnlD3ZO26oo8kyFr5vuP8iYmKjYXe-2L3d6aZsZjiukH",
+ "expect": {
+  "c": [
+   48.24227,
+   23.42918
+  ],
+  "r": 2,
+  "d": "2026-10-10",
+  "zones": [
+   {
+    "n": 1,
+    "p": 34,
+    "a": 2.0,
+    "s": [
+     "Опеньок осінній"
+    ],
+    "ring": [
+     [
+      48.243,
+      23.43
+     ],
+     [
+      48.243,
+      23.431
+     ],
+     [
+      48.244,
+      23.431
+     ],
+     [
+      48.244,
+      23.43
+     ]
+    ]
+   },
+   {
+    "n": 2,
+    "p": 58,
+    "a": null,
+    "s": [],
+    "ring": null
+   }
+  ]
+ }
+}
