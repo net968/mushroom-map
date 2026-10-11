@@ -22,4 +22,7 @@ XD=$(chromium --headless=new --no-sandbox --disable-gpu --virtual-time-budget=60
 echo "$XD" | grep -q 'Посилання пошкоджене' || { echo "FAIL: XSS-посилання не відхилено"; exit 1; }
 echo "$XD" | grep -q 'data-pwned' && { echo "FAIL: XSS виконався"; exit 1; }
 grep -q "'app.js'" sw.js && grep -q "'vendor/leaflet.js'" sw.js || { echo "FAIL: sw.js не кешує оболонку"; exit 1; }
+PIN=$(chromium --headless=new --no-sandbox --disable-gpu --virtual-time-budget=4000 --dump-dom "http://localhost:$PORT/pin.html" 2>/dev/null)
+echo "$PIN" | grep -q 'Точна мітка знахідки' || { echo "FAIL: pin.html не відкрилась"; exit 1; }
+echo "$PIN" | grep -q 'id="ok" disabled' || { echo "FAIL: кнопка мітки активна без замірів"; exit 1; }
 echo "SMOKE OK"

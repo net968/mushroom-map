@@ -1,6 +1,6 @@
 // Service worker: оболонка сторінки (precache при install) + плитки супутника з кешу.
-const APP = "app-v4", TILES = "tiles-v1";
-const SHELL = ['./', 'index.html', 'app.js', 'lib.js', 'vendor/leaflet.js', 'vendor/leaflet.css'];
+const APP = "app-v5", TILES = "tiles-v1";
+const SHELL = ['./', 'index.html', 'app.js', 'lib.js', 'vendor/leaflet.js', 'vendor/leaflet.css', 'pin.html', 'pin.js', 'pinlib.js'];
 const TG = "https://telegram.org/js/telegram-web-app.js";
 
 self.addEventListener("install", e => e.waitUntil((async () => {
@@ -21,10 +21,11 @@ self.addEventListener("fetch", e => {
   e.respondWith((async () => {
     const tiles = await caches.open(TILES), app = await caches.open(APP);
     if (req.mode === "navigate") {                                             // оболонка: мережа (≤3 с) → кеш
-      const cachedShell = async () => (await app.match("index.html")) || (await app.match("./")) || Response.error();
+      const page = new URL(req.url).pathname.endsWith("/pin.html") ? "pin.html" : "index.html";   // 🎯 точна мітка — своя сторінка
+      const cachedShell = async () => (await app.match(page)) || (page === "index.html" && await app.match("./")) || Response.error();
       try {
         const r = await Promise.race([fetch(req), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 3000))]);
-        if (r.ok) app.put("index.html", r.clone()).catch(() => {});
+        if (r.ok) app.put(page, r.clone()).catch(() => {});
         return r;
       } catch (err) { return cachedShell(); }
     }

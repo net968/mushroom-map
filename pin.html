@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline'; connect-src 'self' https://telegram.org">
+<title>🎯 Точна мітка</title>
+<style>
+  html,body{margin:0;min-height:100%;background:#111;color:#eee;font:16px system-ui,sans-serif}
+  main{padding:20px 18px;max-width:480px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 8px}
+  .tip{color:#aaa;font-size:14px;line-height:1.4;margin:0 0 18px}
+  #big{font-size:44px;font-weight:700;margin:6px 0}
+  #q{font-size:18px;font-weight:600;min-height:24px}
+  #info{color:#ccc;font-size:14px;margin:10px 0 4px;min-height:40px;line-height:1.5}
+  #coords{font:14px ui-monospace,monospace;color:#9cf;min-height:20px;user-select:all}
+  .bar{height:8px;background:#333;border-radius:4px;overflow:hidden;margin:14px 0}
+  .bar i{display:block;height:100%;width:0;background:#2ecc40;transition:width .5s}
+  button{display:block;width:100%;font-size:18px;padding:14px;border:0;border-radius:10px;margin-top:12px;background:#2ecc40;color:#000;font-weight:700}
+  button:disabled{background:#333;color:#777}
+  #again{background:#333;color:#eee;font-weight:500}
+</style>
+</head>
+<body>
+<main>
+  <h1>🎯 Точна мітка знахідки</h1>
+  <p class="tip">Стань біля гриба й не рухайся ~1 хв. Тримай телефон екраном угору, не закривай його верх рукою. Чим довше — тим точніше.</p>
+  <div id="big">…</div>
+  <div id="q"></div>
+  <div class="bar"><i id="prog"></i></div>
+  <div id="info">Шукаю супутники…</div>
+  <div id="coords"></div>
+  <button id="ok" disabled>✅ Поставити мітку</button>
+  <button id="again">↺ Почати заново</button>
+</main>
+<script id="tg-script" src="https://telegram.org/js/telegram-web-app.js"></script>
+<script type="module" src="pin.js"></script>
+</body>
+</html>
