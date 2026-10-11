@@ -7,8 +7,10 @@ const TILES = "tiles-v1";
 function fail(text) { const m = $("msg"); m.textContent = text; m.style.display = "flex"; }
 
 function tg() { return window.Telegram && window.Telegram.WebApp; }
-function tgInit() {
-  const w = tg(); if (!w) return;
+let tgDone = false;
+function tgInit() {                                       // ідемпотентно
+  const w = tg(); if (!w || tgDone) return;
+  tgDone = true;
   try { w.ready(); w.expand(); w.disableVerticalSwipes && w.disableVerticalSwipes(); } catch (e) {}
 }
 
@@ -18,10 +20,12 @@ async function main() {
   let data;
   try { data = await decode(location.hash); }
   catch (e) { return fail(e instanceof BadLink ? "Посилання пошкоджене — відкрий карту з бота ще раз." : "Помилка: " + e); }
-  tgInit(); setTimeout(tgInit, 1500);                     // скрипт Telegram вантажиться async
+  tgInit();                                               // скрипт Telegram вантажиться async:
+  const tgScript = $("tg-script"); if (tgScript) tgScript.addEventListener("load", tgInit);
+  for (let i = 1; i <= 20; i++) setTimeout(tgInit, i * 500);
 
-  const map = L.map("map", { zoomControl: false, attributionControl: true }).setView(data.c, 15);
-  L.tileLayer(TILE_URL, { maxZoom: 19, maxNativeZoom: 17, attribution: "Esri World Imagery" }).addTo(map);
+  const map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 13 }).setView(data.c, 15);
+  L.tileLayer(TILE_URL, { maxZoom: 19, maxNativeZoom: 17, crossOrigin: true, attribution: "Esri World Imagery" }).addTo(map);
   L.circle(data.c, { radius: data.r * 1000, color: "#fff", weight: 1.5, fill: false, interactive: false }).addTo(map);
   L.circleMarker(data.c, { radius: 6, color: "#fff", weight: 2, fillColor: "#1e90ff", fillOpacity: 1 }).addTo(map)
     .bindPopup(`📍 Точка аналізу · ${data.d}`);
@@ -45,7 +49,7 @@ async function main() {
   map.fitBounds(bounds.pad(0.15));
 
   // GPS: браузерний watchPosition; якщо відмовлено — Telegram LocationManager раз на 10 с
-  let me = null, acc = null;
+  let me = null, acc = null, tgFallback = false;
   const show = (lat, lon, a) => {
     pos = [lat, lon];
     if (!me) { me = L.circleMarker(pos, { radius: 8, color: "#fff", weight: 3, fillColor: "#1e90ff", fillOpacity: 1 }).addTo(map);
@@ -61,7 +65,7 @@ async function main() {
       tick(); setInterval(tick, 10000); });
   };
   if (navigator.geolocation) navigator.geolocation.watchPosition(p => show(p.coords.latitude, p.coords.longitude, p.coords.accuracy),
-    () => tgPoll(), { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+    err => { if ((err.code === 1 || err.code === 2) && !tgFallback) { tgFallback = true; tgPoll(); } }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
   else tgPoll();
   $("me").onclick = () => { if (pos) map.setView(pos, Math.max(map.getZoom(), 16)); };
 
@@ -69,13 +73,14 @@ async function main() {
   const list = tilesForCircle(data.c[0], data.c[1], data.r);
   const saveBtn = $("save");
   const cached = async () => { const c = await caches.open(TILES); let n = 0;
-    for (const t of list) if (await c.match(tileUrl(t))) n++; return n; };
+    for (const t of list) if (await c.match(tileUrl(t), { ignoreVary: true })) n++; return n; };
   cached().then(n => { if (n === list.length) saveBtn.textContent = "✅ Офлайн"; }).catch(() => {});
   saveBtn.onclick = async () => {
     saveBtn.disabled = true; const c = await caches.open(TILES); let done = 0, ok = 0;
     const queue = list.slice();
     const worker = async () => { while (queue.length) { const t = queue.shift(), u = tileUrl(t);
-      try { if (!(await c.match(u))) await c.put(u, await fetch(u, { mode: "no-cors" })); ok++; } catch (e) {}
+      try { if (!(await c.match(u, { ignoreVary: true }))) { const r = await fetch(u, { mode: "cors" });
+              if (!r.ok) throw new Error(r.status); await c.put(u, r); } ok++; } catch (e) {}
       done++; saveBtn.textContent = `💾 ${done}/${list.length}`; } };
     await Promise.all(Array.from({ length: 6 }, worker));
     saveBtn.textContent = ok === list.length ? "✅ Офлайн" : `⚠️ ${ok}/${list.length}`; saveBtn.disabled = false;
