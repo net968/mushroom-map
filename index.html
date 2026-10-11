@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>🍄 Грибні зони</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<style>
+  html,body{margin:0;height:100%;background:#111;font:15px system-ui,sans-serif}
+  #map{position:absolute;inset:0 0 56px 0}
+  #bar{position:absolute;left:0;right:0;bottom:0;height:56px;display:flex;align-items:center;gap:8px;padding:0 8px;background:#1b1b1b;color:#eee}
+  #status{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #bar button{font-size:15px;padding:8px 10px;border:0;border-radius:8px;background:#333;color:#fff}
+  #msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;color:#eee;padding:24px;background:#111;z-index:2000}
+  .zone-label{background:none;border:0}
+  .zone-label b{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:12px;border:2px solid #000;color:#000;font:700 14px system-ui;padding:0 3px;transform:translate(-50%,-100%)}
+  .zone-label i{font-style:normal;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;font:600 13px system-ui;margin-left:4px;position:relative;top:-14px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="bar"><span id="status">…</span><button id="me">◎</button><button id="save">💾 Офлайн</button></div>
+<div id="msg"></div>
+<script src="https://telegram.org/js/telegram-web-app.js" async></script>
+<script src="vendor/leaflet.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
