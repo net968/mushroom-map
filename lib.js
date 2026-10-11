@@ -16,16 +16,29 @@ async function inflateRaw(bytes) {
   return new TextDecoder().decode(buf);
 }
 
+const fin = v => typeof v === "number" && Number.isFinite(v);
+const bad = m => { throw new BadLink(m); };
+
 export async function decode(hash) {
-  const h = (hash || "").replace(/^#/, "");
+  const h = (hash || "").replace(/^#/, "").split(/[?&]/)[0];      // Telegram дописує свої параметри після payload
   if (!h.startsWith("v1.") || h.length < 5) throw new BadLink("unknown format");
   let j;
   try { j = JSON.parse(await inflateRaw(b64urlToBytes(h.slice(3)))); }
   catch (e) { throw e instanceof BadLink ? e : new BadLink(String(e)); }
-  if (!Array.isArray(j.c) || !Array.isArray(j.z)) throw new BadLink("bad payload");
+  if (!j || typeof j !== "object") bad("bad payload");
+  if (!Array.isArray(j.c) || j.c.length !== 2 || !j.c.every(fin)) bad("bad c");
+  if (!fin(j.r) || !(j.r > 0)) bad("bad r");
+  if (typeof j.d !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(j.d)) bad("bad d");
+  if (!Array.isArray(j.z)) bad("bad z");
   const zones = j.z.map(z => {
+    if (!z || typeof z !== "object") bad("bad zone");
+    if (!Number.isInteger(z.n) || z.n < 1 || z.n > 99) bad("bad n");
+    if (!fin(z.p) || z.p < 0 || z.p > 100) bad("bad p");
+    if (z.a != null && (!fin(z.a) || z.a < 0)) bad("bad a");
+    if (z.s != null && (!Array.isArray(z.s) || z.s.length > 10 || !z.s.every(x => typeof x === "string" && x.length <= 60))) bad("bad s");
+    if (z.o != null && (!Array.isArray(z.o) || z.o.length < 6 || z.o.length % 2 || !z.o.every(Number.isInteger))) bad("bad o");
     let ring = null;
-    if (Array.isArray(z.o) && z.o.length >= 6) {
+    if (z.o) {
       ring = []; let cur = j.c.slice();
       for (let k = 0; k < z.o.length; k += 2) { cur = [cur[0] + z.o[k], cur[1] + z.o[k + 1]]; ring.push([cur[0] / 1e5, cur[1] / 1e5]); }
     }

@@ -3,6 +3,7 @@ import { decode, BadLink, colour, statusLine, nearestOnRing, pointInRing, fmtDis
 
 const $ = id => document.getElementById(id);
 const TILES = "tiles-v1";
+const esc = v => String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function fail(text) { const m = $("msg"); m.textContent = text; m.style.display = "flex"; }
 
@@ -16,7 +17,9 @@ function tgInit() {                                       // ідемпотен�
 
 async function main() {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
-  if (typeof DecompressionStream === "undefined") return fail("Онови Android System WebView — ця версія не вміє відкрити карту.");
+  let dsOk = typeof DecompressionStream !== "undefined";
+  if (dsOk) { try { new DecompressionStream("deflate-raw"); } catch (e) { dsOk = false; } }
+  if (!dsOk) return fail("Онови Android System WebView — ця версія не вміє відкрити карту.");
   let data;
   try { data = await decode(location.hash); }
   catch (e) { return fail(e instanceof BadLink ? "Посилання пошкоджене — відкрий карту з бота ще раз." : "Помилка: " + e); }
@@ -25,10 +28,12 @@ async function main() {
   for (let i = 1; i <= 20; i++) setTimeout(tgInit, i * 500);
 
   const map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 13 }).setView(data.c, 15);
-  L.tileLayer(TILE_URL, { maxZoom: 19, maxNativeZoom: 17, crossOrigin: true, attribution: "Esri World Imagery" }).addTo(map);
+  const list = tilesForCircle(data.c[0], data.c[1], data.r);
+  const nativeZ = list.length ? Math.max(...list.map(t => t.z)) : 17;
+  L.tileLayer(TILE_URL, { maxZoom: 19, maxNativeZoom: nativeZ, crossOrigin: true, attribution: "Esri World Imagery" }).addTo(map);
   L.circle(data.c, { radius: data.r * 1000, color: "#fff", weight: 1.5, fill: false, interactive: false }).addTo(map);
   L.circleMarker(data.c, { radius: 6, color: "#fff", weight: 2, fillColor: "#1e90ff", fillOpacity: 1 }).addTo(map)
-    .bindPopup(`📍 Точка аналізу · ${data.d}`);
+    .bindPopup(`📍 Точка аналізу · ${esc(data.d)}`);
 
   let pos = null;
   const bounds = L.latLngBounds([data.c]);
@@ -39,11 +44,11 @@ async function main() {
     poly.bindPopup(() => {
       let d = "";
       if (pos) d = pointInRing(pos, z.ring) ? "<br>🍄 ти тут" : (() => { const e = nearestOnRing(pos, z.ring); return `<br>до краю ${fmtDist(e.dist)} на ${bearingName(pos, [e.lat, e.lon])}`; })();
-      return `<b>Зона ${z.n} · ${z.p}%</b>${z.a ? ` · ~${z.a} га` : ""}${z.s.length ? "<br>" + z.s.join(", ").toLowerCase() : ""}${d}`;
+      return `<b>Зона ${esc(Number(z.n))} · ${esc(Number(z.p))}%</b>${z.a ? ` · ~${esc(Number(z.a))} га` : ""}${z.s.length ? "<br>" + esc(z.s.join(", ").toLowerCase()) : ""}${d}`;
     });
     const top = z.ring.reduce((a, p) => (p[0] > a[0] ? p : a), z.ring[0]);
     L.marker([top[0], z.c[1]], { interactive: false,
-      icon: L.divIcon({ className: "zone-label", html: `<b style="background:${col}">${z.n}</b><i>${z.p}%</i>`, iconSize: [0, 0] }) }).addTo(map);
+      icon: L.divIcon({ className: "zone-label", html: `<b style="background:${col}">${esc(Number(z.n))}</b><i>${esc(Number(z.p))}%</i>`, iconSize: [0, 0] }) }).addTo(map);
     bounds.extend(poly.getBounds());
   }
   map.fitBounds(bounds.pad(0.15));
@@ -57,7 +62,8 @@ async function main() {
     me.setLatLng(pos); acc.setLatLng(pos).setRadius(a || 0);
     $("status").textContent = statusLine(pos, data.zones);
   };
-  $("status").textContent = statusLine(null, data.zones);
+  $("status").textContent = "шукаю GPS…";
+  const noGeo = () => { if (!pos) $("status").textContent = statusLine(null, data.zones); };
   const tgPoll = () => {
     const lm = tg() && tg().LocationManager; if (!lm) return;
     lm.init(() => { if (!lm.isLocationAvailable) return;
@@ -65,17 +71,17 @@ async function main() {
       tick(); setInterval(tick, 10000); });
   };
   if (navigator.geolocation) navigator.geolocation.watchPosition(p => show(p.coords.latitude, p.coords.longitude, p.coords.accuracy),
-    err => { if ((err.code === 1 || err.code === 2) && !tgFallback) { tgFallback = true; tgPoll(); } }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
-  else tgPoll();
+    err => { noGeo(); if ((err.code === 1 || err.code === 2) && !tgFallback) { tgFallback = true; tgPoll(); } }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+  else { noGeo(); tgPoll(); }
   $("me").onclick = () => { if (pos) map.setView(pos, Math.max(map.getZoom(), 16)); };
 
   // Офлайн: плитки кола в Cache Storage (service worker віддає їх без мережі)
-  const list = tilesForCircle(data.c[0], data.c[1], data.r);
   const saveBtn = $("save");
   const cached = async () => { const c = await caches.open(TILES); let n = 0;
     for (const t of list) if (await c.match(tileUrl(t), { ignoreVary: true })) n++; return n; };
   cached().then(n => { if (n === list.length) saveBtn.textContent = "✅ Офлайн"; }).catch(() => {});
   saveBtn.onclick = async () => {
+    try { navigator.storage?.persist?.(); } catch (e) {}
     saveBtn.disabled = true; const c = await caches.open(TILES); let done = 0, ok = 0;
     const queue = list.slice();
     const worker = async () => { while (queue.length) { const t = queue.shift(), u = tileUrl(t);

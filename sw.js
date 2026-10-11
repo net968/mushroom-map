@@ -1,12 +1,12 @@
 // Service worker: оболонка сторінки (precache при install) + плитки супутника з кешу.
-const APP = "app-v2", TILES = "tiles-v1";
+const APP = "app-v3", TILES = "tiles-v1";
 const SHELL = ['./', 'index.html', 'app.js', 'lib.js', 'vendor/leaflet.js', 'vendor/leaflet.css'];
 const TG = "https://telegram.org/js/telegram-web-app.js";
 
 self.addEventListener("install", e => e.waitUntil((async () => {
   const c = await caches.open(APP);
   await Promise.all(SHELL.map(u => c.add(u).catch(() => {})));                 // по одному: збій одного не валить усе
-  await c.put(TG, await fetch(TG, { mode: "no-cors" })).catch(() => {});
+  try { await c.put(TG, await fetch(TG, { mode: "no-cors" })); } catch (e) {}
   self.skipWaiting();
 })()));
 

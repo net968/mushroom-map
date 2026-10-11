@@ -59,3 +59,29 @@ test("tilesForCircle: 2 км — усі зуми, 5 км — обрізано д
   assert.equal(tileUrl({ z: 16, x: 37031, y: 22785 }),
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/16/22785/37031");
 });
+
+import { deflateRawSync } from "node:zlib";
+const enc = o => "#v1." + deflateRawSync(Buffer.from(JSON.stringify(o))).toString("base64url");
+const OK = { c: [4824230, 2343000], r: 2, d: "2026-10-10", z: [{ n: 1, p: 40, a: 1.5, s: ["Білий"], o: [0, 0, 10, 0, 0, 10] }] };
+
+test("decode: параметри Telegram після payload ігноруються", async () => {
+  const bare = await decode("#" + fx.fragment);
+  assert.deepEqual(await decode("#" + fx.fragment + "?tgWebAppData=abc&tgWebAppVersion=9.6"), bare);
+  assert.deepEqual(await decode("#" + fx.fragment + "&tgWebAppData=abc"), bare);
+});
+
+test("decode: валідний payload проходить, шкідливі відхиляються", async () => {
+  await decode(enc(OK));
+  const mut = f => { const o = structuredClone(OK); f(o); return enc(o); };
+  const bads = [
+    mut(o => { o.z[0].n = "<img src=x onerror=alert(1)>"; }),
+    mut(o => { o.z[0].s = [123]; }),
+    mut(o => { o.d = "x"; }),
+    mut(o => { o.z[0].o = [0, 0, 1, 1, 2]; }),
+    mut(o => { o.z = [null]; }),
+    mut(o => { o.r = 0; }),
+    mut(o => { o.c = [1]; }),
+    mut(o => { o.z[0].p = 101; }),
+  ];
+  for (const b of bads) await assert.rejects(decode(b), BadLink);
+});
