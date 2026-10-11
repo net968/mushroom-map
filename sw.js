@@ -1,5 +1,5 @@
 // Service worker: оболонка сторінки (precache при install) + плитки супутника з кешу.
-const APP = "app-v3", TILES = "tiles-v1";
+const APP = "app-v4", TILES = "tiles-v1";
 const SHELL = ['./', 'index.html', 'app.js', 'lib.js', 'vendor/leaflet.js', 'vendor/leaflet.css'];
 const TG = "https://telegram.org/js/telegram-web-app.js";
 

@@ -32,8 +32,9 @@ async function main() {
   const nativeZ = list.length ? Math.max(...list.map(t => t.z)) : 17;
   L.tileLayer(TILE_URL, { maxZoom: 19, maxNativeZoom: nativeZ, crossOrigin: true, attribution: "Esri World Imagery" }).addTo(map);
   L.circle(data.c, { radius: data.r * 1000, color: "#fff", weight: 1.5, fill: false, interactive: false }).addTo(map);
-  L.circleMarker(data.c, { radius: 6, color: "#fff", weight: 2, fillColor: "#1e90ff", fillOpacity: 1 }).addTo(map)
-    .bindPopup(`📍 Точка аналізу · ${esc(data.d)}`);
+  // точка аналізу — шпилька 📍, щоб не плутати з власною синьою GPS-точкою (відгук В'ячеслава 11.10.2026)
+  L.marker(data.c, { icon: L.divIcon({ className: "start-pin", html: "📍", iconSize: [26, 26], iconAnchor: [13, 24] }) })
+    .addTo(map).bindPopup(`📍 Точка аналізу · ${esc(data.d)}`);
 
   let pos = null;
   const bounds = L.latLngBounds([data.c]);
@@ -52,6 +53,9 @@ async function main() {
     bounds.extend(poly.getBounds());
   }
   map.fitBounds(bounds.pad(0.15));
+  // здалеку — лише маленькі номери, відсотки з зуму 15 (інакше мітки злипаються; повне — по тапу на пляму)
+  const far = () => map.getContainer().classList.toggle("far", map.getZoom() < 15);
+  map.on("zoomend", far); far();
 
   // GPS: браузерний watchPosition; якщо відмовлено — Telegram LocationManager раз на 10 с
   let me = null, acc = null, tgFallback = false;
